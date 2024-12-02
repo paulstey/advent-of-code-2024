@@ -12,9 +12,9 @@ fn is_safe_report(row: &[i32]) -> bool {
             return false;
         } else if abs_diff > 3 {
             return false;
-        } else {
-            differences.push(row[i] - row[i + 1]);
         }
+
+        differences.push(row[i] - row[i + 1]);
     }
 
     let all_positive = differences.iter().all(|&x| x > 0);
@@ -45,7 +45,22 @@ fn count_safe_reports() -> io::Result<i32> {
             })
             .collect();
 
-        safe_reports += is_safe_report(&row) as i32;
+        if is_safe_report(&row) {
+            safe_reports += 1;
+        } else {
+            // Part 2:
+            // This is the section that removes one element from the row and allows us
+            // to test if the report is safe once the "bad" element is removed
+            for i in 0..row.len() {
+                let mut sub_row = row.clone();
+                let _ = sub_row.remove(i);
+
+                if is_safe_report(&sub_row) {
+                    safe_reports += 1;
+                    break;
+                }
+            }
+        }
     }
 
     Ok(safe_reports)
