@@ -1,31 +1,29 @@
-use regex::Regex;
-use std::fs::File;
-use std::io::{self, BufRead};
+use anyhow::Result;
+use regex::bytes::Regex;
 use std::time::Instant;
 
-fn process_corrupt_instructions() -> io::Result<i32> {
-    let path = "data/input.txt";
-    let file = File::open(&path)?;
-    let reader = io::BufReader::new(file);
+fn process_corrupt_instructions() -> Result<usize> {
+    let re = Regex::new(r"(mul\(([0-9]+),([0-9]+)\)|do\(\)|don't\(\))").unwrap();
+    let mut enabled = true;
 
-    let mut total = 0;
-    let mul_re = Regex::new(r"mul\(\d{1,3},\d{1,3}\)").unwrap();
-    let nums_re = Regex::new(r"\d{1,3},\d{1,3}").unwrap();
-    for line in reader.lines() {
-        let line = line?;
-
-        for mul in mul_re.find_iter(&line) {
-            // println!("Found a match: {}", mul.as_str());
-            for nums in nums_re.find_iter(mul.as_str()) {
-                let mut nums = nums.as_str().split(",");
-                let num1 = nums.next().unwrap().parse::<i32>().unwrap();
-                let num2 = nums.next().unwrap().parse::<i32>().unwrap();
-                total += num1 * num2;
+    let result = re
+        .captures_iter(include_bytes!("../data/input.txt"))
+        .filter(|capture| {
+            if capture.get(0).unwrap().as_bytes() == b"do()" {
+                enabled = true;
+                return false;
+            } else if capture.get(0).unwrap().as_bytes() == b"don't()" {
+                enabled = false;
             }
-        }
-    }
+            enabled
+        })
+        .map(|capture| {
+            atoi::atoi::<usize>(capture.get(2).unwrap().as_bytes()).unwrap()
+                * atoi::atoi::<usize>(capture.get(3).unwrap().as_bytes()).unwrap()
+        })
+        .sum::<usize>() as usize;
 
-    Ok(total)
+    Ok(result)
 }
 
 fn main() {
