@@ -1,117 +1,73 @@
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{BufRead, BufReader};
+use std::process;
 use std::time::Instant;
 
-fn read_input_data() -> io::Result<(HashMap<i32, Vec<i32>>, Vec<Vec<i32>>)> {
-    let path = "data/example_input.txt";
-    let file = File::open(&path)?;
-    let reader = io::BufReader::new(file);
-
-    let mut ordering_rules: HashMap<i32, Vec<i32>> = HashMap::new();
-    let mut update_lists = Vec::new();
-
-    for line in reader.lines() {
-        let line = line?;
-
-        if line.contains('|') {
-            // This first section is where we handle the ordering rules. If the line contains a
-            // '|', then we know that the first number is the leader and the second number is the
-            // succesor.
-            let mut nums_iter = line.split('|');
-            let leader: i32 = nums_iter.next().unwrap().parse().unwrap();
-            let succesor: i32 = nums_iter.next().unwrap().parse().unwrap();
-
-            if ordering_rules.contains_key(&leader) {
-                ordering_rules.get_mut(&leader).unwrap().push(succesor);
-            } else {
-                ordering_rules.insert(leader, vec![succesor]);
-            }
-        } else if line.contains(',') {
-            // This section specifies the update lists. These update list can be valid or invalid.
-            // If page numbers listed in the update list complying with the ordering rules, then
-            // the update list is valid. Otherwise, the update list is invalid.
-            let update_list = line
-                .split(',')
-                .map(|x| x.parse().unwrap())
-                .collect::<Vec<i32>>();
-
-            update_lists.push(update_list);
-        }
-    }
-    Ok((ordering_rules, update_lists))
-}
-
-fn is_update_list_valid(ordering_rules: &HashMap<i32, Vec<i32>>, update_list: &Vec<i32>) -> bool {
-    // This function checks if the update list is valid or not. If the update list is valid, then
-    // the function returns true. Otherwise, the function returns false.
-    for i in 0..update_list.len() - 1 {
-        for j in i + 1..update_list.len() {
-            let before = update_list[i];
-            let after = update_list[j];
-
-            if ordering_rules.contains_key(&after) {
-                if ordering_rules.get(&after).unwrap().contains(&before) {
-                    return false;
-                }
-            }
-        }
-    }
-    true
-}
-
-fn fix_invalid_list(ordering_rules: &HashMap<i32, Vec<i32>>, update_list: &Vec<i32>) -> Vec<i32> {
-    let mut is_invalid = true;
-    let mut new_update_list = update_list.clone();
-
-    let mut i = 0;
-
-    while is_invalid && i < (new_update_list.len() - 1) {
-        for j in i + 1..new_update_list.len() {
-            let before = new_update_list[i];
-            let after = new_update_list[j];
-
-            if ordering_rules.contains_key(&after) {
-                if ordering_rules.get(&after).unwrap().contains(&before) {
-                    new_update_list.swap(i, j);
-                    is_invalid = !is_update_list_valid(ordering_rules, &new_update_list);
-                    i = 0;
-                    break;
-                }
-            }
-        }
-        is_invalid = !is_update_list_valid(ordering_rules, &new_update_list);
-
-        i += 1;
-    }
-
-    new_update_list
+fn get_input_file() -> BufReader<File> {
+    let f = File::open("data/input.txt").unwrap_or_else(|err| {
+        eprintln!("Error opening file: {err}");
+        process::exit(1);
+    });
+    BufReader::new(f)
 }
 
 fn main() {
     let t1 = Instant::now();
-    let (ordering_rules, update_lists) = read_input_data().unwrap();
 
-    let sum_mid_values: i32 = update_lists
-        .into_iter()
-        .map(|update_list| {
-            let is_valid = is_update_list_valid(&ordering_rules, &update_list);
+    let mut rules: HashSet<(i32, i32)> = HashSet::new();
 
-            let increment_by = if is_valid {
-                0
-            } else {
-                let new_update_list = fix_invalid_list(&ordering_rules, &update_list);
-                let mid_idx = new_update_list.len() / 2;
+    let mut lines = get_input_file().lines().map_while(Result::ok);
 
-                new_update_list[mid_idx]
-            };
+    // The first part of the input is the rules for the swapping.
+    // The rules are in the format of "before|after" where before and after are integers.
+    // The rules are read until an empty line is found.
+    // Note that we're using `by_ref()` here in order to only partially consume the iterator.
+    // This is because we want to use the iterator again to read the page updates.
+    for line in lines.by_ref() {
+        if line.trim().is_empty() {
+            break;
+        }
 
-            increment_by
-        })
-        .sum();
+        let mut line = line.trim().split('|');
+        let before: i32 = line.next().unwrap().parse().unwrap();
+        let after: i32 = line.next().unwrap().parse().unwrap();
 
-    let t2 = Instant::now();
+        rules.insert((before, after));
+    }
 
-    println!("Sum mid values: {:?}", sum_mid_values);
-    println!("Total walltime: {:?}", t2.duration_since(t1));
+    // let mut part1 = 0;
+    let mut part2 = 0;
+
+    // The second part of the input is the pages updates we want to make.
+    // The pages are in the format of a comma separated list of integers.
+    // The pages are read until the end of the file.
+    for line in lines {
+        let mut page: Vec<i32> = line.split(',').map(|n| n.parse().unwrap()).collect();
+
+        // If the page updates are already sorted by the rules, we skip the line.
+        // Otherwise, we sort the page by the rules and get the middle element.
+        if page.is_sorted_by(|&a, &b| !rules.contains(&(b, a))) {
+            // part1 += page[page.len() / 2];
+            continue;
+        } else {
+            page.sort_by(|&a, &b| {
+                if rules.contains(&(a, b)) {
+                    Ordering::Less
+                } else if rules.contains(&(b, a)) {
+                    Ordering::Greater
+                } else {
+                    Ordering::Equal
+                }
+            });
+
+            part2 += page[page.len() / 2];
+        }
+    }
+    let elapsed = t1.elapsed();
+
+    println!("Elapsed: {:?}", elapsed);
+    // println!("Part 1: {part1}");
+    println!("Part 2: {part2}");
 }
