@@ -43,8 +43,6 @@ fn read_input_data() -> io::Result<(HashMap<i32, Vec<i32>>, Vec<Vec<i32>>)> {
 }
 
 fn is_update_list_valid(ordering_rules: &HashMap<i32, Vec<i32>>, update_list: &Vec<i32>) -> bool {
-    // This function checks if the update list is valid or not. If the update list is valid, then
-    // the function returns true. Otherwise, the function returns false.
     for i in 0..update_list.len() - 1 {
         for j in i + 1..update_list.len() {
             let before = update_list[i];
@@ -57,6 +55,7 @@ fn is_update_list_valid(ordering_rules: &HashMap<i32, Vec<i32>>, update_list: &V
             }
         }
     }
+
     true
 }
 
