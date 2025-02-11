@@ -10,6 +10,13 @@ fn count_xmas_instances() -> usize {
         .flat_map(|i| (0..input_mat.len() as isize).map(move |j| (i, j)))
         .flat_map(|(i, j)| {
             let coords_mat = [
+                // For each (i, j), we create four sets of 4 coordinates, each set
+                // representing a 4-letter “stretch” in one of the following directions:
+                //
+                //    NE (Northeast): go up one row and right one column each step
+                //    E (East): stay in the same row and move right one column each step
+                //    SE (Southeast): move down one row and right one column each step
+                //    S (South): move down one row each step
                 [(i, j), (i + 1, j - 1), (i + 2, j - 2), (i + 3, j - 3)], // NE
                 [(i, j), (i + 1, j), (i + 2, j), (i + 3, j)],             // E
                 [(i, j), (i + 1, j + 1), (i + 2, j + 2), (i + 3, j + 3)], // SE
@@ -20,6 +27,12 @@ fn count_xmas_instances() -> usize {
         })
         .filter(|coords| {
             let mut iter = coords.iter().map(|(i, j)| {
+                // For each set of coordinates, we try to fetch the corresponding 4
+                // bytes (characters) from our input_mat. If any coordinate is out of
+                // bounds, unwrap_or_default() simply inserts a default byte value (0).
+                //
+                // We fill the word array with these 4 bytes.
+                // We compare that 4-byte word to the byte arrays for "XMAS" or "SAMX" (which is "XMAS" reversed).
                 input_mat
                     .get(*j as usize)
                     .and_then(|row| row.get(*i as usize).copied())
